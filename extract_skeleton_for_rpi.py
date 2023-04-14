@@ -6,8 +6,6 @@ import numpy as np
 import pandas as pd
 from tensorflow.keras.models import load_model
 
-
-
 def getPosture(arr):
     # 우리가 만든 자세판별 모델을 로드
     model = load_model("models\\first_test_model.h5")
