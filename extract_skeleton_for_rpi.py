@@ -3,19 +3,17 @@ import argparse
 import cv2
 import math
 import numpy as np
-import pandas as pd
 from tensorflow.keras.models import load_model
 
 def getPosture(arr):
     # 우리가 만든 자세판별 모델을 로드
-    model = load_model("models\\first_test_model.h5")
+    model = load_model("models\\0417_model.h5")
     # 모델에 입력값을 넣고 결과값 반환
     # 0, 1, 2 각 경우일 가능성을 numpy로 반환할걸?아마두
     arr2 = model.predict(np.expand_dims(arr, axis = 0))
     # 그 중 가능성이 가장 높은 것이 판단 결과임
     print(arr2)
     print(np.argmax(arr2))
-
 
 #################################################################
 
@@ -32,6 +30,9 @@ def calculate_slope(aX,aY,bX,bY):
 # 우리에게 필요한 뼈대값만 추출하는 함수
 def output_keypoints(frame, proto_file, weights_file, threshold, model_name, BODY_PARTS):
     global points
+
+    # 두 눈과 어깨가 모두 추출되지 않았다면 1로 변경
+    check_flag = 0
 
     # 네트워크 불러오기
     net = cv2.dnn.readNetFromCaffe(proto_file, weights_file)
@@ -97,6 +98,11 @@ def output_keypoints(frame, proto_file, weights_file, threshold, model_name, BOD
             elif i == 15:
                 LEyePoints[0] = x
                 LEyePoints[1] = y
+        else:
+            if(i==2)or(i==5)or(i==14)or(i==15):
+                print(i, "가 감지되지 않았음")
+                check_flag = 1
+                continue
 
     # 눈 ~ 어깨 거리. 광대 길이 대신에 눈 거리로 나누기
     ShoulderEyeDistance = calculate_distance((RShoulderPoints[0]+LShoulderPoints[0])/2, (RShoulderPoints[1]+LShoulderPoints[1])/2,
@@ -112,10 +118,10 @@ def output_keypoints(frame, proto_file, weights_file, threshold, model_name, BOD
     # 어깨 기울기
     # 눈 기울기
     
-    pointarr = [ShoulderEyeDistance/EyeDistance, EyeDistance, EyeSlope,ShoulderSlope]
+    pointarr = [RShoulderPoints[1],LShoulderPoints[1],ShoulderEyeDistance/EyeDistance, EyeDistance, EyeSlope,ShoulderSlope]
     
     cv2.waitKey(0)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               
-    return pointarr
+    return pointarr, check_flag
 
 ########################################
 
@@ -140,8 +146,13 @@ img = "images\\image_0.jpg"
 frame_coco = cv2.imread(img)
 
 # COCO Model
-frame_COCO = output_keypoints(frame=frame_coco, proto_file=protoFile_coco, weights_file=weightsFile_coco,
+frame_COCO, flag = output_keypoints(frame=frame_coco, proto_file=protoFile_coco, weights_file=weightsFile_coco,
                              threshold=0.1, model_name="COCO", BODY_PARTS=BODY_PARTS_COCO)
 
-# 추출한 뼈대값을 모델에 넣고 결과값 얻어냄
-getPosture(frame_COCO)
+if(flag==1):
+    print("두 눈과 어깨가 모두 추출되지 않았음")
+
+else:
+    # 추출한 뼈대값을 모델에 넣고 결과값 얻어냄
+    print("두 눈과 어깨가 모두 추출되었음")
+    getPosture(frame_COCO)
