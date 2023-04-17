@@ -105,16 +105,14 @@ def output_keypoints(l,frame, proto_file, weights_file, threshold, model_name, B
     # 눈 ~ 어깨 거리 / 눈x거리
     # 어깨 기울기
     # 눈 기울기
-
-    #print("오른쪽 왼쪽 눈 y   ", REyePoints[1],"   ",LEyePoints[1])
-    #print("오른쪽 왼쪽 어깨 y   ",RShoulderPoints[1],"   ",LShoulderPoints[1])
-    #print()
     
-    dict = {"imagename":0,
-            "shouldereyedistance":ShoulderEyeDistance/EyeDistance,
-            "eyedistance":EyeDistance,
-            "eyeslope":EyeSlope,
-            "shoulderslope":ShoulderSlope,
+    dict = {"image_name":0,
+            "right_shoulder_Y":RShoulderPoints[1],
+            "left_shoulder_Y":LShoulderPoints[1],
+            "shoulder_eye_distance":ShoulderEyeDistance/EyeDistance,
+            "eye_distance":EyeDistance,
+            "eye_slope":EyeSlope,
+            "shoulder_slope":ShoulderSlope,
             "label":l}
     
     print(dict)
@@ -140,7 +138,6 @@ weightsFile_coco = "openpose_coco\\pose_iter_440000.caffemodel"
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--label", default = "zero")
-#ap.add_argument("--image_num", type=int)
 ap.add_argument("--start", type=int)
 ap.add_argument("--end", type=int)
 
@@ -148,7 +145,7 @@ ap.add_argument("--first", type=int, default =1)
 args = vars(ap.parse_args())
 
 path = "./data_"+args["label"]+"/"
-csv_path = "./0416_data_"+args["label"]+'.csv'
+csv_path = "./0417_data_"+args["label"]+'.csv'
 
 img = path+"image_{}.jpg"
 
@@ -166,6 +163,10 @@ for i in range(args["start"], args["end"]):
     image_name = img.format(i)
     frame_coco = cv2.imread(image_name)
 
+    if(frame_coco is None):
+        print(i," is not exist")
+        continue
+
     # 키포인트를 저장할 빈 리스트
     points = []
 
@@ -176,7 +177,7 @@ for i in range(args["start"], args["end"]):
     if(flag==1):
         continue
     else:
-        frame_COCO['imagename'] = image_name
+        frame_COCO['image_name'] = image_name
 
         rows.append(frame_COCO)
         print(i)
