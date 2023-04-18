@@ -108,7 +108,9 @@ def output_keypoints(frame, proto_file, weights_file, threshold, model_name, BOD
     ShoulderEyeDistance = calculate_distance((RShoulderPoints[0]+LShoulderPoints[0])/2, (RShoulderPoints[1]+LShoulderPoints[1])/2,
                             (REyePoints[0]+LEyePoints[0])/2, (REyePoints[1]+LEyePoints[1])/2)
 
-    EyeDistance = abs(REyePoints[0]-LEyePoints[0])
+    #EyeDistance = abs(REyePoints[0]-LEyePoints[0])
+    EyeDistance = calculate_distance(REyePoints[0], LEyePoints[0], REyePoints[1], LEyePoints[1])
+
 
     # 어깨기울기
     EyeSlope = calculate_slope(REyePoints[0], REyePoints[1], LEyePoints[0], LEyePoints[1])
@@ -120,10 +122,17 @@ def output_keypoints(frame, proto_file, weights_file, threshold, model_name, BOD
     
     pointarr = [RShoulderPoints[1],LShoulderPoints[1],ShoulderEyeDistance/EyeDistance, EyeDistance, EyeSlope,ShoulderSlope]
     
+    print(pointarr)
+
     cv2.waitKey(0)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               
     return pointarr, check_flag
 
 ########################################
+
+ap = argparse.ArgumentParser()
+ap.add_argument("--filename")
+args = vars(ap.parse_args())
+
 
 BODY_PARTS_COCO = {0: "Nose", 1: "Neck", 2: "RShoulder", 3: "RElbow", 4: "RWrist",
                    5: "LShoulder", 6: "LElbow", 7: "LWrist", 8: "RHip", 9: "RKnee",
@@ -140,7 +149,8 @@ weightsFile_coco = "openpose_coco\\pose_iter_440000.caffemodel"
 ##############################################################
 
 # 테스트할 이미지 경로
-img = "images\\image_0.jpg"
+img = args["filename"]
+print("LOAD COMPLETE", img)
 
 # 테스트할 이미지 불러오기
 frame_coco = cv2.imread(img)
