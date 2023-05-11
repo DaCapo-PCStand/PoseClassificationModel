@@ -1,4 +1,6 @@
-# 필요한 관절값만 뽑는
+# 자세분류모델 실험용 코드
+# 실시간으로 카메라 켜고 s로 사진 찍은 뒤 자세분류 결과 출력하는 코드
+# python 0428_extract_skeleton --label 라벨영어로(0:바른,1:거북목,2:비뚤어진) 
 import argparse
 import cv2
 import math
@@ -6,8 +8,20 @@ import numpy as np
 import pandas as pd
 import csv
 import csv_control
+from tensorflow.keras.models import load_model
 
-#################################################################
+# 
+def getPosture(arr):
+    # 자세분류모델을 로드
+    model = load_model("models\\0424_model.h5")
+    # 모델에 입력값을 넣고 결과값 반환
+    # 0, 1, 2 각 경우일 가능성을 numpy로 반환할걸?아마두
+    res = model.predict(np.expand_dims(arr, axis = 0))
+    # 그 중 가능성이 가장 높은 것이 판단 결과임
+    print(res)
+    print(np.argmax(res))
+
+################################################################
 
 def calculate_distance(aX, aY, bX, bY):
     return math.sqrt(math.pow(aX-bX,2)+math.pow(aY-bY,2))
@@ -26,11 +40,16 @@ def output_keypoints(l,frame, proto_file, weights_file, threshold, model_name, B
     net = cv2.dnn.readNetFromCaffe(proto_file, weights_file)
 
     # 입력 사이즈 정의
-    image_height = 320
-    image_width = 240
+    image_height = 240
+    image_width = 320
 
     # 네트워크에 넣기 위한 전처리
-    input_blob = cv2.dnn.blobFromImage(frame,1.0 / 255,(image_width, image_height),(0, 0, 0),swapRB=False, crop=False)
+    input_blob = cv2.dnn.blobFromImage(frame,
+                                       1.0 / 255,
+                                       (image_width, image_height),
+                                       (0, 0, 0),
+                                       swapRB=False,
+                                         crop=False)
 
     # 전처리한 blob을 네트워크에 입력
     net.setInput(input_blob)
@@ -47,6 +66,7 @@ def output_keypoints(l,frame, proto_file, weights_file, threshold, model_name, B
     # 포인트의 (x,y)값을 저장하고 있음
     points = []
 
+    NosePoints = [0,0]
     RShoulderPoints = [0,0]
     LShoulderPoints = [0,0]
     REyePoints = [0,0]
@@ -69,17 +89,17 @@ def output_keypoints(l,frame, proto_file, weights_file, threshold, model_name, B
         # threshold가 작아지면 검출이 잘되고 그대신 오인식할 가능성도 높아짐
         if prob > threshold:  # [pointed] 감지했다는 뜻
             points.append((x, y))
-            cv2.circle(frame, (int(x), int(y)), 3, (0, 255, 255), thickness=-1, lineType=cv2.FILLED) # circle(그릴곳, 원의 중심, 반지름, 색)
-            cv2.putText(frame, "{}".format(i), (int(x), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1, lineType=cv2.LINE_AA)
-            
-            # 어깨 좌표 추출
-            if i == 2:
+        
+            # 코, 어깨, 눈 좌표 추출
+            if i == 0:
+                NosePoints[0] = x
+                NosePoints[1] = y
+            elif i == 2:
                 RShoulderPoints[0] = x
                 RShoulderPoints[1] = y
             elif i == 5:
                 LShoulderPoints[0] = x
                 LShoulderPoints[1] = y
-            # 눈 좌표 추출
             elif i == 14:
                 REyePoints[0] = x
                 REyePoints[1] = y
@@ -87,38 +107,39 @@ def output_keypoints(l,frame, proto_file, weights_file, threshold, model_name, B
                 LEyePoints[0] = x
                 LEyePoints[1] = y
         else:
-            if(i==2)or(i==5)or(i==14)or(i==15):
+            if(i==0)or(i==2)or(i==5)or(i==14)or(i==15):
                 print(i, "가 감지되지 않았음")
                 check_flag = 1
                 continue
 
-    # 눈 ~ 어깨 거리. 광대 길이 대신에 눈 거리로 나누기
-    ShoulderEyeDistance = calculate_distance((RShoulderPoints[0]+LShoulderPoints[0])/2, (RShoulderPoints[1]+LShoulderPoints[1])/2,
-                            (REyePoints[0]+LEyePoints[0])/2, (REyePoints[1]+LEyePoints[1])/2)
+    EyeHeight = (REyePoints[1]+LEyePoints[1])/2
+    ShoulderHeight = (RShoulderPoints[1]+LShoulderPoints[1])/2
 
-    EyeDistance = abs(REyePoints[0]-LEyePoints[0])
+    NoseShoulderDistance = ShoulderHeight-NosePoints[1]
+    ShoulderEyeDistance = ShoulderHeight-EyeHeight
+    EyeDistance = calculate_distance(REyePoints[0], LEyePoints[0], REyePoints[1], LEyePoints[1])
 
-    # 어깨기울기
     EyeSlope = calculate_slope(REyePoints[0], REyePoints[1], LEyePoints[0], LEyePoints[1])
     ShoulderSlope = calculate_slope(RShoulderPoints[0],RShoulderPoints[1],LShoulderPoints[0],LShoulderPoints[1])
     
-    # 눈 ~ 어깨 거리 / 눈x거리
-    # 어깨 기울기
-    # 눈 기울기
-    
     dict = {"image_name":0,
-            "right_shoulder_Y":RShoulderPoints[1],
-            "left_shoulder_Y":LShoulderPoints[1],
-            "shoulder_eye_distance":ShoulderEyeDistance/EyeDistance,
+            "nose_y":NosePoints[1],
+            "nose_shoulder_distance":NoseShoulderDistance,
+            "shoulder_eye_distance":ShoulderEyeDistance,
             "eye_distance":EyeDistance,
             "eye_slope":EyeSlope,
             "shoulder_slope":ShoulderSlope,
             "label":l}
     
     print(dict)
+    print()
+    pointarr = list(dict.values())
+    pointarr = pointarr[1:7]
+
+    
     #cv2.imshow("Output_Keypoints", frame)
     cv2.waitKey(0)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               
-    return dict, check_flag
+    return dict, check_flag, pointarr
 
 ########################################
 
@@ -138,16 +159,7 @@ weightsFile_coco = "openpose_coco\\pose_iter_440000.caffemodel"
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--label", default = "zero")
-ap.add_argument("--start", type=int)
-ap.add_argument("--end", type=int)
-
-ap.add_argument("--first", type=int, default =1)
 args = vars(ap.parse_args())
-
-path = "./data_"+args["label"]+"/"
-csv_path = "./0417_data_"+args["label"]+'.csv'
-
-img = path+"image_{}.jpg"
 
 l=0
 if args["label"] == "zero":
@@ -159,32 +171,31 @@ elif args["label"] == "two":
 
 rows = []
 
-for i in range(args["start"], args["end"]):
-    image_name = img.format(i)
-    frame_coco = cv2.imread(image_name)
+cap = cv2.VideoCapture(0)
 
-    if(frame_coco is None):
-        print(i," is not exist")
-        continue
+if cap.isOpened():
+    while(True):
+        ret, frame = cap.read()
 
-    # 키포인트를 저장할 빈 리스트
-    points = []
+        # 프레임 읽기를 성공했으면
+        if(ret) :
+            
+            frame=cv2.resize(frame,dsize=(320,240),interpolation=cv2.INTER_AREA)
+            cv2.imshow('frame_color', frame) 
+            if cv2.waitKey(1)==ord('s'):
+                
+                # COCO Model
+                frame_COCO, flag, pointarr = output_keypoints(l,frame=frame, proto_file=protoFile_coco, weights_file=weightsFile_coco,
+                                        threshold=0.1, model_name="COCO", BODY_PARTS=BODY_PARTS_COCO)
+                frame_COCO['image_name'] = "test_frame"
 
-    # COCO Model
-    frame_COCO, flag = output_keypoints(l,frame=frame_coco, proto_file=protoFile_coco, weights_file=weightsFile_coco,
-                             threshold=0.1, model_name="COCO", BODY_PARTS=BODY_PARTS_COCO)
-    
-    if(flag==1):
-        continue
-    else:
-        frame_COCO['image_name'] = image_name
+                # 자세 분류 모델에 입력값 전달
+                #getPosture(pointarr)
+                break
+else:
+    print("Can't open Video")
 
-        rows.append(frame_COCO)
-        print(i)
-        print()
-        #print(frame_COCO)
-        if args['first']==1:
-             csv_control.first_make_csv(frame_COCO, csv_path)
-
-        elif args['first']==0:
-             csv_control.add_to_csv(frame_COCO, csv_path)
+# 비디오 객체 자원 반납
+cap.release()
+# 윈도우창 삭제
+cv2.destroyAllWindows()
