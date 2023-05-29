@@ -199,6 +199,3 @@ for i in range(args["start"], args["end"]):
 
         csv_control.append_dict_to_csv(frame_COCO, "0524_data.csv")
         
-        # 자세분류모델 실행
-        # getPosture(pointarr)
-
