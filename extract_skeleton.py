@@ -73,7 +73,8 @@ def output_keypoints(l,frame, proto_file, weights_file, threshold, model_name, B
 
         # threshold가 작아지면 검출이 잘되고 그대신 오인식할 가능성도 높아짐
         if prob > threshold:  # [pointed] 감지했다는 뜻
-            #cv2.circle(frame, (int(x), int(y)), 3, (0, 255, 255), thickness=-1, lineType=cv2.FILLED) # circle(그릴곳, 원의 중심, 반지름, 색)
+            # circle(그릴곳, 원의 중심, 반지름, 색)
+            #cv2.circle(frame, (int(x), int(y)), 3, (0, 255, 255), thickness=-1, lineType=cv2.FILLED) 
             
             points.append((x, y))
         
@@ -124,14 +125,9 @@ def output_keypoints(l,frame, proto_file, weights_file, threshold, model_name, B
             "shoulder_slope":ShoulderSlope,
             "label":l}
     
-    # print(dict)
-    # print()
-    pointarr = list(dict.values())
-    pointarr = pointarr[1:7]
-
     #cv2.imshow("Output_Keypoints", frame)
     cv2.waitKey(0)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               
-    return dict, check_flag, pointarr
+    return dict, check_flag
 
 ########################################
 
@@ -167,7 +163,6 @@ elif args["label"] == "one":
 elif args["label"] == "two":
     l = 2
 
-rows = []
 
 for i in range(args["start"], args["end"]):
     image_name = img.format(i)
@@ -181,7 +176,7 @@ for i in range(args["start"], args["end"]):
     points = []
 
     # COCO Model
-    frame_COCO, flag, pointarr = output_keypoints(l,frame=frame_coco, proto_file=protoFile_coco, weights_file=weightsFile_coco,
+    frame_COCO, flag = output_keypoints(l,frame=frame_coco, proto_file=protoFile_coco, weights_file=weightsFile_coco,
                              threshold=0.1, model_name="COCO", BODY_PARTS=BODY_PARTS_COCO)
     
     # 눈, 코, 어깨가 전부 감지되지 않았다면
@@ -191,11 +186,7 @@ for i in range(args["start"], args["end"]):
         # 다 감지됐으면 파일명 추가
         frame_COCO['image_name'] = image_name
         
-        # 여러장에서 추출한 뼈대값들을 한번에 csv파일에 넣기 위해서 list 이어붙임
-        rows.append(frame_COCO)
         print("FRAME_COCO : ", frame_COCO)
-        print("POINTARR : ", pointarr)
         print()
 
         csv_control.append_dict_to_csv(frame_COCO, "0524_data.csv")
-        
